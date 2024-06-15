@@ -2,13 +2,13 @@ from flask import request, json, Response
 
 
 def test_signal():
-    title_receive = request.args.get('title_give')
-    print(f"Received title: {title_receive}")
+    title = request.args.get('title')
+    print(f"Received title: {title}")
 
     response_data = {
         'result': 'success',
         'msg': '이 요청은 GET!',
-        'title_received': title_receive
+        'title_received': title
     }
 
     response_json = json.dumps(response_data, ensure_ascii=False)

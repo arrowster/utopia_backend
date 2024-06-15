@@ -1,0 +1,3 @@
+from utopia_backend.routers.naver_market_search import naver_market_search
+from utopia_backend.routers.test_signal import test_signal
+from utopia_backend.routers.key_words import key_words
