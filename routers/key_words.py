@@ -5,7 +5,6 @@ keywordList = []
 
 def key_words():
     keywords = request.args.get('keywords')
-
-    keywordList.append(keywords.split(','))
+    keywordList.extend(keywords.split(','))
 
     return keywordList
