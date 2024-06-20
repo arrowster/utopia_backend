@@ -1,5 +1,6 @@
 from flask import Flask
 from routers import routers
+from controllers import gmarket_search
 
 app = Flask(__name__)
 
@@ -18,6 +19,7 @@ def test_sig_func():
 def market_search_func():
     keywordlist = routers.key_words()
     print(keywordlist)
+    gmarket_search.gmarket_search(keywordlist)
     #todo: keyword get
     #todo: naver 마켓 수집
     #todo: keyword 가지치기
