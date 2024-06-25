@@ -19,6 +19,7 @@ def pruning_gmarket_item(url, driver):
     add_url = ('/List?Title=Best%20Item&CategoryType=General&SortType=FocusRank&DisplayType=List&Page=1&PageSize=60'
                '&IsFreeShipping=False&HasDiscount=False&HasStamp=False&HasMileage=False&IsInternationalShipping=False'
                '&IsTpl=False&Roles=System.String%5B%5D&NeedToGetSDBrandName=True#listTop')
+    https = 'https:'
 
     shop_url = url + add_url
     soup = get_soup_from_url(driver, shop_url)
@@ -29,6 +30,5 @@ def pruning_gmarket_item(url, driver):
         if review_span:
             img_tag = item.find('p', {'class': 'img'}).find('img')
             if img_tag and 'data-original' in img_tag.attrs:
-                print(img_tag['data-original'])
-                img_urls.append(img_tag['data-original'])
+                img_urls.append(https + img_tag['data-original'])
     return img_urls
