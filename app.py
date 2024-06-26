@@ -2,9 +2,7 @@ from flask import Flask
 from routers import routers
 from controllers.gmarket_search import gmarket_search
 from controllers.pruning_shop_item import pruning_shop_item
-from controllers.download_image import download_image
-
-import os
+from controllers.save_urls_image_in_directory import save_urls_image_in_directory
 
 app = Flask(__name__)
 
@@ -27,17 +25,7 @@ def market_search_func():
     print(shop_list)
     shop_item_urls = pruning_shop_item(shop_list)
     print(shop_item_urls)
-
-    os.makedirs('./temp_img', exist_ok=True)
-    count_img = 0
-    count_fail_img = 0
-    for url in shop_item_urls:
-        flag = download_image(url, f'./temp_img/{ count_img }.jpg')
-        if flag:
-            count_img += 1
-        else:
-            count_fail_img += 1
-    print(f'image 추출이 완료됨 총 { count_img }개, 누락 { count_fail_img }')
+    save_urls_image_in_directory(shop_item_urls)
 
     #todo: keyword 가지치기
     # url 이미지 다운로드
