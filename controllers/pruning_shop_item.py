@@ -1,20 +1,17 @@
-from utopia_backend.controllers.driver import initialize_driver, get_soup_from_url
+from utopia_backend.controllers.SingletonWebDriver import get_soup_from_url
 
 
-def pruning_shop_item(shop_list):
+def pruning_shop_item(driver, shop_list):
     img_urls = []
-    driver = initialize_driver()
     for shop_url in shop_list:
         #todo:나중에 쇼핑물 별로 분류 필요
-        img_url = pruning_gmarket_item(shop_url, driver)
+        img_url = pruning_gmarket_item(driver, shop_url)
         img_urls.extend(img_url)
 
-    driver.close()
-    driver.quit()
     return img_urls
 
 
-def pruning_gmarket_item(url, driver):
+def pruning_gmarket_item(driver, url):
     img_urls = []
     add_url = ('/List?Title=Best%20Item&CategoryType=General&SortType=FocusRank&DisplayType=List&Page=1&PageSize=60'
                '&IsFreeShipping=False&HasDiscount=False&HasStamp=False&HasMileage=False&IsInternationalShipping=False'
