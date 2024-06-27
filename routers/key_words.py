@@ -1,10 +1,9 @@
 from flask import request
 
-keywordList = []
-
 
 def key_words():
+    keyword_list = []
     keywords = request.args.get('keywords')
-    keywordList.extend(keywords.split(','))
+    keyword_list.extend(keywords.split(','))
 
-    return keywordList
+    return keyword_list
