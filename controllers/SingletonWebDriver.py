@@ -25,21 +25,26 @@ class SingletonWebDriver:
         options = webdriver.ChromeOptions()
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
-        options.add_argument("disable-infobars")
         options.add_argument("--disable-extensions")
+        options.add_argument("disable-infobars")
+        options.add_argument('incognito')
         options.add_argument("window-size=10,10")
         options.add_argument(f'user-agent={user_agent}')
 
         service = Service()
         self.driver = webdriver.Chrome(service=service, options=options)
-
-    def get_driver(self):
-        return self.driver
-
-    def close_driver(self):
-        if self.driver:
-            self.driver.close()
-            self.driver.quit()
+        
+    @classmethod
+    def get_driver(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance.driver
+    
+    @classmethod
+    def close_driver(cls):
+        if cls._instance and cls._instance.driver:
+            cls._instance.driver.quit()
+            cls._instance = None
 
 
 def get_soup_from_url(driver, url):
