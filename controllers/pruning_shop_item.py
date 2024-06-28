@@ -1,12 +1,12 @@
 from utopia_backend.controllers.SingletonWebDriver import get_soup_from_url
 
 
-def pruning_shop_item(driver, shop_list):
+def pruning_shop_item(driver, shop_list, min_price, max_price):
     img_urls = []
     for shop_url in shop_list:
         #todo:나중에 쇼핑물 별로 분류 필요
 
-        img_url = pruning_gmarket_item(driver, shop_url)
+        img_url = pruning_gmarket_item(driver, shop_url, min_price, max_price)
         if not img_url:
             continue
         img_urls.extend(img_url)
@@ -14,14 +14,19 @@ def pruning_shop_item(driver, shop_list):
     return img_urls
 
 
-def pruning_gmarket_item(driver, url):
+def pruning_gmarket_item(driver, url, min_price, max_price):
     img_urls = []
-    add_url = ('/List?Title=Best%20Item&CategoryType=General&SortType=FocusRank&DisplayType=List&Page=1&PageSize=60'
-               '&IsFreeShipping=False&HasDiscount=False&HasStamp=False&HasMileage=False&IsInternationalShipping=False'
-               '&IsTpl=False&Roles=System.String%5B%5D&NeedToGetSDBrandName=True#listTop')
+    add_url = ('/List?keyword=&category=&title=Best+Item&sortType=MostPopular&displayType=List&page=1&pageSize=60'
+               '&isFreeShipping=false&hasDiscount=false&isInternationalShipping=false'
+               '&isTpl=false')
+    price_url = f'&minPrice={min_price}&maxPrice={max_price}'
     https = 'https:'
 
-    shop_url = url + add_url
+    if max_price:
+        print(max_price)
+        shop_url = url + add_url + price_url
+    else:
+        shop_url = url + add_url
     soup = get_soup_from_url(driver, shop_url)
 
     first_li = soup.select_one('#ulCategory > li:nth-child(1)')
