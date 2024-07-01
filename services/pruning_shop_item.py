@@ -1,4 +1,4 @@
-from utopia_backend.controllers.SingletonWebDriver import get_soup_from_url
+from utopia_backend.services.SingletonWebDriver import get_soup_from_url
 
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):

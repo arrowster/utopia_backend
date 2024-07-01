@@ -1,4 +1,10 @@
-from utopia_backend.controllers.SingletonWebDriver import get_soup_from_url
+import os.path
+import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.wait import WebDriverWait
+
+from utopia_backend.services.SingletonWebDriver import get_soup_from_url
 
 
 def gmarket_search(driver, words):
