@@ -9,7 +9,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from routers import routers
 from services.SingletonWebDriver import SingletonWebDriver
-from services import gmarket_search
+from services import market_search
 from services.pruning_shop_item import pruning_shop_item
 from services.save_urls_image_in_directory import save_urls_image_in_directory
 
@@ -36,15 +36,19 @@ def market_search_func():
     print(keywordlist)
     #todo: web띄워서 타오바오 로그인 url 보여주기
     # 로그인 완료 서버에 알려줘야함...
-    shop_list = gmarket_search.gmarket_search(driver, keywordlist)
+    shop_list = market_search.gmarket_search(driver, keywordlist)
     print(shop_list)
-    shop_item_urls = pruning_shop_item(driver, shop_list, min_price, max_price)
-    print(f'{shop_item_urls}, {len(shop_item_urls)}개')
-    save_urls_image_in_directory(shop_item_urls)
+    shop_items = pruning_shop_item(driver, shop_list, min_price, max_price)
+    print(f'{shop_items},\r\n'
+          f'{len(shop_items)}개')
 
-    for i in range(3):
-        path = f'./temp_img/{i}.jpg'
-        gmarket_search.taobao_image_search(driver, path)
+    image_urls = [item.image_url for item in shop_items]
+    save_urls_image_in_directory(image_urls)
+
+
+    #for i in range(3):
+    #    path = f'./temp_img/{i}.jpg'
+    #    market_search.taobao_image_search(driver, path)
     #todo: keyword 가지치기
     # url 이미지 다운로드
     # taobao 이미지 검색

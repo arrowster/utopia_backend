@@ -1,21 +1,22 @@
+from utopia_backend.models.ShopItem import ShopItem
 from utopia_backend.services.SingletonWebDriver import get_soup_from_url
 
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):
-    img_urls = []
+    item_details = []
     for shop_url in shop_list:
         #todo:나중에 쇼핑물 별로 분류 필요
 
         img_url = pruning_gmarket_item(driver, shop_url, min_price, max_price)
         if not img_url:
             continue
-        img_urls.extend(img_url)
+        item_details.extend(img_url)
 
-    return img_urls
+    return item_details
 
 
 def pruning_gmarket_item(driver, url, min_price, max_price):
-    img_urls = []
+    item_details = []
     add_url = ('/List?keyword=&category=&title=Best+Item&sortType=MostPopular&displayType=List&page=1&pageSize=60'
                '&isFreeShipping=false&hasDiscount=false&isInternationalShipping=false'
                '&isTpl=false')
@@ -37,9 +38,16 @@ def pruning_gmarket_item(driver, url, min_price, max_price):
         for item in all_shop_item:
             review_span = item.find('span', {'class': 'cnt'})
             if review_span:
+                name_tag = item.find('p', {'class': 'sbj'}).find('a').text
                 img_tag = item.find('p', {'class': 'img'}).find('img')
                 if img_tag and 'data-original' in img_tag.attrs:
-                    img_urls.append(https + img_tag['data-original'])
+                    img_url = https + img_tag['data-original']
+                    item_details.append(
+                        ShopItem(
+                            item_name=name_tag,
+                            image_url=img_url,
+                        )
+                    )
     else:
         return False
-    return img_urls
+    return item_details
