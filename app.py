@@ -29,7 +29,7 @@ def test_sig_func():
 @app.route('/market-search')
 def market_search_func():
     driver = SingletonWebDriver.get_driver()
-    min_price = None
+    min_price = None #todo: 이것도 사용자에게 받아야함 생략 가능
     max_price = None
 
     keywordlist = routers.key_words()
@@ -43,12 +43,15 @@ def market_search_func():
           f'{len(shop_items)}개')
 
     image_urls = [item.image_url for item in shop_items]
-    save_urls_image_in_directory(image_urls)
+    save_images_id = save_urls_image_in_directory(image_urls)
+    print(save_images_id)
+
 
 
     #for i in range(3):
     #    path = f'./temp_img/{i}.jpg'
     #    market_search.taobao_image_search(driver, path)
+
     #todo: keyword 가지치기
     # url 이미지 다운로드
     # taobao 이미지 검색
