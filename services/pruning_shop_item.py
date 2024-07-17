@@ -4,20 +4,26 @@ from utopia_backend.services.keyword_search import keyword_search
 
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):
-    item_details = []
+    items = []
+    sold_item_keywords = []
     for shop_url in shop_list:
         #todo:나중에 쇼핑물 별로 분류 필요
 
-        img_url = pruning_gmarket_item(driver, shop_url, min_price, max_price)
-        if not img_url:
+        keywords = sold_item_keyword_at_gmarket(driver, shop_url, min_price, max_price)
+        if not keywords:
             continue
-        item_details.extend(img_url)
+        sold_item_keywords.extend(keywords)
 
-    return item_details
+    for item_keyword in sold_item_keywords:
+        item = pruning_naver_shoping(driver, item_keyword)
+        if item:
+            items.extend(item)
+
+    return items
 
 
-def pruning_gmarket_item(driver, url, min_price, max_price):
-    item_details = []
+def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
+    sold_item_keywords = []
     add_url = ('/List?keyword=&category=&title=Best+Item&sortType=MostPopular&displayType=List&page=1&pageSize=60'
                '&isFreeShipping=false&hasDiscount=false&isInternationalShipping=false'
                '&isTpl=false')
@@ -40,15 +46,14 @@ def pruning_gmarket_item(driver, url, min_price, max_price):
             review_span = item.find('span', {'class': 'cnt'})
             if review_span:
                 name_tag = item.find('p', {'class': 'sbj'}).find('a').text
-                img_tag = item.find('p', {'class': 'img'}).find('img')
-                if img_tag and 'data-original' in img_tag.attrs:
-                    img_url = https + img_tag['data-original']
-                    item_details.append(
-                        ShopItem(
-                            item_name=name_tag,
-                            image_url=img_url,
-                        )
-                    )
+                if name_tag:
+                    item_main_keywords = keyword_search(name_tag)
+                    print(item_main_keywords)
+                    sold_item_keywords.append(item_main_keywords)
+    else:
+        return False
+    return sold_item_keywords
+
 
 def pruning_naver_shoping(driver, pruning_item_name):
     items = []
