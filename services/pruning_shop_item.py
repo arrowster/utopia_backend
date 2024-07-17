@@ -1,5 +1,6 @@
 from utopia_backend.models.ShopItem import ShopItem
 from utopia_backend.services.SingletonWebDriver import get_soup_from_url
+from utopia_backend.services.keyword_search import keyword_search
 
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):
@@ -48,6 +49,54 @@ def pruning_gmarket_item(driver, url, min_price, max_price):
                             image_url=img_url,
                         )
                     )
+
+def pruning_naver_shoping(driver, pruning_item_name):
+    items = []
+    url = ('https://search.shopping.naver.com/search/all?pagingIndex=1&pagingSize=3&productSet=overseas&'
+           f'query={pruning_item_name}&sort=rel&timestamp=&viewType=list')
+
+    soup = get_soup_from_url(driver, url)
+
+    product_item = soup.select("div[class^='product_item__']")
+    product_items = product_item[:3]
+
+    prev_category = None
+    for item in product_items:
+        # 제품 이미지 URL 추출
+        img_tag = item.find('img')
+        product_image_url = img_tag['src'] if img_tag else None
+
+        # 제품 이름 추출
+        name_tag = item.select_one("div[class^='product_title__']").find('a').text
+        product_item_name = name_tag if name_tag else None
+
+        # 제품 카테고리 추출
+        category_tag = item.select_one("div[class^='product_depth__']")
+        categories = [span.get_text(strip=True) for span in category_tag.find_all('span')] if category_tag else None
+        product_category = ' > '.join(categories)
+
+        if prev_category is None:
+            prev_category = product_category
+
+        if check_category_identities(prev_category, product_category):
+            print(product_item_name)
+            print(product_image_url)
+            print(product_category)
+            items.append(
+                ShopItem(
+                    item_name=product_item_name,
+                    item_image_url=product_image_url,
+                    item_naver_category=product_category
+                )
+            )
+        else:
+            return False
+
+    return items
+
+
+def check_category_identities(criteria, target):
+    if criteria == target:
+        return True
     else:
         return False
-    return item_details
