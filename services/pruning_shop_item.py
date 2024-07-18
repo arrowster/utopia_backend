@@ -1,6 +1,6 @@
 from utopia_backend.models.ShopItem import ShopItem
-from utopia_backend.services.SingletonWebDriver import get_soup_from_url
-from utopia_backend.services.keyword_search import keyword_search
+from utopia_backend.utills.SingletonWebDriver import get_soup_from_url
+from utopia_backend.utills.keyword_search import keyword_search
 
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):
