@@ -1,9 +1,9 @@
 from flask import Flask
 from routers import routers
-from utopia_backend.utills.SingletonWebDriver import SingletonWebDriver
+from utills.SingletonWebDriver import SingletonWebDriver
+from utills.save_urls_image_in_directory import save_urls_image_in_directory
 from services import market_search
 from services.pruning_shop_item import pruning_shop_item
-from services.save_urls_image_in_directory import save_urls_image_in_directory
 
 app = Flask(__name__)
 
@@ -38,7 +38,6 @@ def market_search_func():
 
     image_urls = [item.item_image_url for item in shop_items]
     save_images_id = save_urls_image_in_directory(image_urls)
-    print(save_images_id)
 
     # todo: 타오바오 이미지 검색 및 요소 가져와야함
 

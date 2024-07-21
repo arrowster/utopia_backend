@@ -4,15 +4,20 @@ import re
 
 
 def save_urls_image_in_directory(urls):
-    pattern = re.compile(r'https://gdimg.gmarket.co.kr/(\d+)/still/160')
+    pattern = re.compile(r"https:\/\/shopping-phinf\.pstatic\.net\/main_\d+\/\d+(\.\d+)?\.jpg\?type=f140")
     os.makedirs('./temp_img', exist_ok=True)
     count_img = 0
     count_fail_img = 0
     image_names = []
 
     for url in urls:
-        match = pattern.search(url)
-        item_number = match.group(1)
+        match = pattern.match(url)
+        if not match:
+            count_fail_img += 1
+            print(f"dont match: {url}")
+            continue
+
+        item_number = count_img
         flag = download_image(url, f'./temp_img/{ item_number }.jpg')
         if flag:
             count_img += 1
