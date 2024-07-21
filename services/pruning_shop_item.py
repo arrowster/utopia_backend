@@ -67,8 +67,12 @@ def pruning_naver_shoping(driver, pruning_item_name):
     prev_category = None
     for item in product_items:
         # 제품 이미지 URL 추출
-        img_tag = item.find('img')
-        product_image_url = img_tag['src'] if img_tag else None
+        img_tag = item.select_one("div[class^='product_img_area__']").find('img')
+        if img_tag:
+            product_image_url = img_tag['src']
+        else:
+            print(f"이미지 서치 실패: {url}, {pruning_item_name}")
+            continue
 
         # 제품 이름 추출
         name_tag = item.select_one("div[class^='product_title__']").find('a').text
