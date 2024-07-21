@@ -5,14 +5,15 @@ from utopia_backend.utills.keyword_search import keyword_search
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):
     items = []
-    sold_item_keywords = []
+    sold_item_keywords = set()
     for shop_url in shop_list:
-        #todo:나중에 쇼핑물 별로 분류 필요
+        # todo:나중에 쇼핑물 별로 분류 필요
 
         keywords = sold_item_keyword_at_gmarket(driver, shop_url, min_price, max_price)
         if not keywords:
             continue
-        sold_item_keywords.extend(keywords)
+        sold_item_keywords.update(keywords)
+    print(sold_item_keywords)
 
     for item_keyword in sold_item_keywords:
         item = pruning_naver_shoping(driver, item_keyword)
@@ -28,7 +29,6 @@ def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
                '&isFreeShipping=false&hasDiscount=false&isInternationalShipping=false'
                '&isTpl=false')
     price_url = f'&minPrice={min_price}&maxPrice={max_price}'
-    https = 'https:'
 
     if max_price:
         print(max_price)
@@ -48,7 +48,6 @@ def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
                 name_tag = item.find('p', {'class': 'sbj'}).find('a').text
                 if name_tag:
                     item_main_keywords = keyword_search(name_tag)
-                    print(item_main_keywords)
                     sold_item_keywords.append(item_main_keywords)
     else:
         return False
@@ -84,9 +83,6 @@ def pruning_naver_shoping(driver, pruning_item_name):
             prev_category = product_category
 
         if check_category_identities(prev_category, product_category):
-            print(product_item_name)
-            print(product_image_url)
-            print(product_category)
             items.append(
                 ShopItem(
                     item_name=product_item_name,
