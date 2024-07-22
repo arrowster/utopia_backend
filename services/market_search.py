@@ -1,9 +1,3 @@
-import os.path
-import time
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.wait import WebDriverWait
-
 from utopia_backend.utills.SingletonWebDriver import get_soup_from_url
 
 
