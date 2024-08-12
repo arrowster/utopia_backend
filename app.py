@@ -53,21 +53,26 @@ def market_search_func():
 
     # 타오바오 내에서 이미지 검색
     # 필요한 내용 크롤링(이미지, 상품 링크)
+    # todo: 트래픽 이슈 해결 필
     cnt = 0
     driver.get(taobao_url)
 
     for item in shop_items:
         image_path = save_image_and_return_abs_path(item.item_image_url)
         if image_path:
-            taobao_item_link, taobao_image_link = taobao_search.taobao_image_search(driver, image_path)
-            print(cnt + 1)
+            taobao_item = taobao_search.taobao_image_search(driver, image_path)
+            if taobao_item:
+                taobao_item_link, taobao_image_link = taobao_item
+            else:
+                continue
+
+            print(f'{cnt + 1} / {len(shop_items)}')
             item.item_taobao_item_url = taobao_item_link
             item.item_taobao_image_url = taobao_image_link
         cnt += 1
-        time.sleep(3)
+        time.sleep(2)
 
-    # todo: 배송비 측정
-
+    print(f'누락 {len(shop_items) - cnt}개')
     print('close webDriver')
     SingletonWebDriver.close_driver()
     return keywordlist
