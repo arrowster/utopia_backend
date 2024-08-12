@@ -32,7 +32,7 @@ def taobao_image_search(driver, img_path):
         print("이미지 검색 완료")
     except Exception as e:
         print("err:", e)
-        return 0
+        return False
 
     try:
         load_position = '//*[@id="pageContent"]/div[1]/div[2]/div/div/div[1]/a'
@@ -64,11 +64,11 @@ def taobao_image_search(driver, img_path):
                 return taobao_item_info
             else:
                 print("필수 정보를 모두 찾지 못했습니다.")
-                return None
+                return False
         else:
             print("검색 아이템을 찾을 수 없습니다.")
-            return None
+            return False
 
     except TimeoutException as e:
         print("페이지 로드 중 오류 발생:", e)
-        return None
+        return False
