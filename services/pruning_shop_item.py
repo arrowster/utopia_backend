@@ -47,10 +47,12 @@ def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
             if review_span:
                 name_tag = item.find('p', {'class': 'sbj'}).find('a').text
                 if name_tag:
-                    item_main_keywords = keyword_search(name_tag)
+                    keywords = keyword_search(name_tag)
+                    item_main_keywords = ' '.join(keywords[:3])
                     sold_item_keywords.append(item_main_keywords)
     else:
         return False
+
     return sold_item_keywords
 
 
@@ -91,7 +93,8 @@ def pruning_naver_shoping(driver, pruning_item_name):
                 ShopItem(
                     item_name=product_item_name,
                     item_image_url=product_image_url,
-                    item_naver_category=product_category
+                    item_naver_category=product_category,
+                    item_main_keywords=pruning_item_name
                 )
             )
         else:
@@ -105,3 +108,4 @@ def check_category_identities(criteria, target):
         return True
     else:
         return False
+

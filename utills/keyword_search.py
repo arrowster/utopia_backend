@@ -7,6 +7,6 @@ def keyword_search(item_name):
     item_name = re.sub(r'\W+', ' ', item_name)
     words = item_name.split()
 
-    main_keywords = ' '.join(words[:3])
+    words
 
-    return main_keywords
+    return words
