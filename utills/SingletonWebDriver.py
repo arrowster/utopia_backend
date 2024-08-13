@@ -28,7 +28,7 @@ class SingletonWebDriver:
         options.add_argument("--disable-extensions")
         options.add_argument("disable-infobars")
         options.add_argument('incognito')
-        options.add_argument("window-size=10,10")
+        options.add_argument("window-size=680,740")
         options.add_argument(f'user-agent={user_agent}')
 
         service = Service()
@@ -50,8 +50,6 @@ class SingletonWebDriver:
 def get_soup_from_url(driver, url):
     driver.get(url)
     body = driver.find_element(By.CSS_SELECTOR, 'body')
-    body.send_keys(Keys.END)
-    time.sleep(1)
 
     try:
         WebDriverWait(driver, 5).until(
@@ -59,7 +57,19 @@ def get_soup_from_url(driver, url):
         )
     except Exception as e:
         print("페이지 로드 중 오류 발생:", e)
-        return None
+        return False
+
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while True:
+        driver.find_element(By.CSS_SELECTOR, 'body').send_keys(Keys.END)
+        time.sleep(1)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+            break
+
+        last_height = new_height
 
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
