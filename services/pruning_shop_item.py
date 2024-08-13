@@ -1,6 +1,6 @@
 from utopia_backend.models.ShopItem import ShopItem
 from utopia_backend.utills.SingletonWebDriver import get_soup_from_url
-from utopia_backend.utills.keyword_search import keyword_search
+from utopia_backend.utills.keyword_split import keyword_split
 
 
 def pruning_shop_item(driver, shop_list, min_price, max_price):
@@ -47,7 +47,7 @@ def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
             if review_span:
                 name_tag = item.find('p', {'class': 'sbj'}).find('a').text
                 if name_tag:
-                    keywords = keyword_search(name_tag)
+                    keywords = keyword_split(name_tag)
                     item_main_keywords = ' '.join(keywords[:3])
                     sold_item_keywords.append(item_main_keywords)
     else:
