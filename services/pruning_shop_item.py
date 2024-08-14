@@ -109,3 +109,25 @@ def check_category_identities(criteria, target):
     else:
         return False
 
+
+def search_seb_keywords(driver, main_keyword):
+    sub_keywords = set()
+    # todo: 네이버 쇼핑에서 20개 리스트 뽑아서 메인키워드 제외하고, 중복되지 않게 넣어야 함
+    url = f'https://search.shopping.naver.com/search/all?pagingIndex=1&pagingSize=20&productSet=total&query={main_keyword}&sort=rel&timestamp=&viewType=list'
+    # 메인 키워드 분리
+    main_keywords = keyword_split(main_keyword)
+
+    soup = get_soup_from_url(driver, url)
+
+    product_item = soup.select("div[class^='product_item__']")
+
+    for item in product_item:
+        name_tag = item.select_one("div[class^='product_title__']").find('a').text
+        product_item_name = name_tag if name_tag else None
+        keywords = keyword_split(product_item_name)
+        sub_keywords.update(keywords)
+
+    for keyword in main_keywords:
+        sub_keywords.discard(keyword)
+
+    return sub_keywords

@@ -4,10 +4,9 @@ from flask import Flask
 from routers import routers
 from utills.SingletonWebDriver import SingletonWebDriver
 from utills.save_image_and_return_abs_path import save_image_and_return_abs_path
-from utills.get_abs_path import get_abs_path
 from services import market_search
 from services import taobao_search
-from services.pruning_shop_item import pruning_shop_item
+from services.pruning_shop_item import pruning_shop_item, search_seb_keywords
 
 app = Flask(__name__)
 
@@ -46,17 +45,29 @@ def market_search_func():
     shop_list = market_search.gmarket_search(driver, keywordlist)
     print(shop_list)
 
-    # 아이템 가지 치기
+    # 아이템 가지 치기 (아이템 이름, 이미지, 네이버 카테고리, 메인 키워드 수집)
     shop_items = pruning_shop_item(driver, shop_list, min_price, max_price)
     print(f'{shop_items},\r\n'
           f'{len(shop_items)}개')
 
-    # 타오바오 내에서 이미지 검색
-    # 필요한 내용 크롤링(이미지, 상품 링크)
+    # 서브 키워드 수집
+    main_keyword_to_sub_keywords = {}
+
+    for item in shop_items:
+        main_keyword = item.item_main_keywords
+        if main_keyword not in main_keyword_to_sub_keywords:
+            sub_keywords = search_seb_keywords(driver, main_keyword)
+            main_keyword_to_sub_keywords[main_keyword] = sub_keywords
+        else:
+            sub_keywords = main_keyword_to_sub_keywords[main_keyword]
+
+        item.item_sub_keywords = sub_keywords
+
     # todo: 트래픽 이슈 해결 필
     cnt = 0
     driver.get(taobao_url)
 
+    # 타오바오 링크, 타오바오 이미지 수집
     for item in shop_items:
         image_path = save_image_and_return_abs_path(item.item_image_url)
         if image_path:
@@ -71,8 +82,9 @@ def market_search_func():
             item.item_taobao_image_url = taobao_image_link
         cnt += 1
         time.sleep(2)
-
     print(f'누락 {len(shop_items) - cnt}개')
+    print(shop_items)
+
     print('close webDriver')
     SingletonWebDriver.close_driver()
     return keywordlist
