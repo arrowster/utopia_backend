@@ -13,7 +13,7 @@ def taobao_login(driver):
     driver.get(url)
 
     try:
-        WebDriverWait(driver, 60).until(
+        WebDriverWait(driver, 120).until(
             expected_conditions.presence_of_element_located((By.XPATH, '//*[@id="J_SiteNavLogin"]/div[1]'))
         )
         print("로그인 성공")
@@ -29,21 +29,19 @@ def taobao_image_search(driver, img_path):
         upload_input.send_keys(img_path)
         time.sleep(1)
         search_button.click()
-        print("이미지 검색 완료")
     except Exception as e:
         print("err:", e)
         return False
 
     try:
-        load_position = '//*[@id="pageContent"]/div[1]/div[2]/div/div/div[1]/a'
-        WebDriverWait(driver, 15).until(
+        load_position = '//*[@id="pageContent"]/div[1]/div[2]/div/div/a[1]'
+        WebDriverWait(driver, 20).until(
             expected_conditions.presence_of_element_located((By.XPATH, load_position))
         )
         time.sleep(2)
 
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         search_item = soup.select_one('a[class^="ImgSearchCard--doubleCardWrapper--"]')
-        print(search_item)
 
         if search_item:
             try:
@@ -70,5 +68,5 @@ def taobao_image_search(driver, img_path):
             return False
 
     except TimeoutException as e:
-        print("페이지 로드 중 오류 발생:", e)
+        print("time out 페이지 로드 중 오류 발생:", e)
         return False
