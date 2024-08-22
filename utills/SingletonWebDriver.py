@@ -28,7 +28,7 @@ class SingletonWebDriver:
         options.add_argument("--disable-extensions")
         options.add_argument("disable-infobars")
         options.add_argument('incognito')
-        options.add_argument("window-size=680,740")
+        options.add_argument("window-size=800,700")
         options.add_argument(f'user-agent={user_agent}')
 
         service = Service()
@@ -42,6 +42,7 @@ class SingletonWebDriver:
     
     @classmethod
     def close_driver(cls):
+        print('close webdriver')
         if cls._instance and cls._instance.driver:
             cls._instance.driver.quit()
             cls._instance = None
