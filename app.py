@@ -29,12 +29,13 @@ def test_sig_func():
 def market_search_func():
     driver = SingletonWebDriver.get_driver()
     taobao_url = 'https://s.taobao.com/search?q='
-    max_cnt_item = 50 # todo: 이것도 사용자에게 받아야함 생략 불가 단위 50
-    min_price = None  # todo: 이것도 사용자에게 받아야함 생략 가능
-    max_price = None
-
-    keywordlist = routers.key_words()
+    keywordlist, env = routers.process_request()
+    print(env)
     print(keywordlist)
+
+    min_price = env.get('min')
+    max_price = env.get('max')
+    max_cnt_item = env.get('cnt', 100)
 
     # 타오바오 로그인
     try:

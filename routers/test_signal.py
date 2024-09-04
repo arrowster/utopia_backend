@@ -13,3 +13,7 @@ def test_signal():
 
     response_json = json.dumps(response_data, ensure_ascii=False)
     return Response(response_json, content_type='application/json; charset=utf-8')
+
+
+def test_signal():
+    return None

@@ -1,4 +1,4 @@
-from utopia_backend.utills.SingletonWebDriver import get_soup_from_url
+from utills.SingletonWebDriver import get_soup_from_url
 
 
 def gmarket_search(driver, words):
