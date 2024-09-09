@@ -24,6 +24,11 @@ def test_sig_func():
     return routers.test_signal()
 
 
+@app.route('/debug-test')
+def test_debug():
+    print('test')
+    return 'test'
+
 
 @app.route('/market-search')
 def market_search_func():
@@ -45,7 +50,7 @@ def market_search_func():
     print(f'수집 시작 시간: {start_time.tm_hour}:{start_time.tm_min}:{start_time.tm_sec}')
 
     # 마켓 검색
-    shop_list = market_search.gmarket_search(driver, keywordlist)
+    shop_list = market_search.search_shops(driver, keywordlist, 'gmarket')
     print(shop_list)
     print(f'{len(shop_list)}개의 마켓을 찾음')
 
