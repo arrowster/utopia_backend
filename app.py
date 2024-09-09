@@ -29,13 +29,9 @@ def test_sig_func():
 def market_search_func():
     driver = SingletonWebDriver.get_driver()
     taobao_url = 'https://s.taobao.com/search?q='
-    keywordlist, env = routers.process_request()
-    print(env)
+    keywordlist, min_price, max_price, collect_cnt = routers.process_request()
+    max_cnt_item = collect_cnt
     print(keywordlist)
-
-    min_price = env.get('min')
-    max_price = env.get('max')
-    max_cnt_item = env.get('cnt', 100)
 
     # 타오바오 로그인
     try:
@@ -74,12 +70,13 @@ def market_search_func():
     cnt = 0
     driver.get(taobao_url)
 
-    if max_cnt_item > len(shop_items): #
+    if max_cnt_item > len(shop_items):
         all_item_cnt = len(shop_items)
     else:
         all_item_cnt = max_cnt_item
 
     # 타오바오 링크, 타오바오 이미지 수집
+    res_data = []
     for item in shop_items:
         image_path = save_image_and_return_abs_path(item.item_image_url)
         if image_path:
@@ -92,13 +89,14 @@ def market_search_func():
             print(f'{cnt + 1} / {all_item_cnt}')
             item.item_taobao_item_url = taobao_item_link
             item.item_taobao_image_url = taobao_image_link
+        res_data.append(item)
         cnt += 1
         if cnt >= max_cnt_item:
             break
         time.sleep(2)
 
     print(f'누락 {all_item_cnt - cnt}개') # 최대수 따로 뽑아서 해야함
-    print(shop_items)
+    print(res_data)
 
     end_time = time.localtime()
     print(f'수집 종료 시간: {end_time.tm_hour}:{end_time.tm_min}:{end_time.tm_sec}')
@@ -107,7 +105,7 @@ def market_search_func():
     print_running_time(start_time, end_time)
     print(f'수집 아이템 수: {cnt}개')
 
-    shop_items_dict = [asdict(item) for item in shop_items]
+    shop_items_dict = [asdict(item) for item in res_data]
     shop_items_list = convert_sets_to_lists(shop_items_dict)
     print('done.')
     return jsonify(shop_items_list)

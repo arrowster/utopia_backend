@@ -30,8 +30,7 @@ def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
                '&isTpl=false')
     price_url = f'&minPrice={min_price}&maxPrice={max_price}'
 
-    if max_price:
-        print(max_price)
+    if min_price or max_price:
         shop_url = url + add_url + price_url
     else:
         shop_url = url + add_url

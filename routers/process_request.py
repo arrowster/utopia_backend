@@ -1,17 +1,10 @@
 from flask import request
 
+
 def process_request():
-    # 키워드 처리
-    keyword_list = []
-    keywords = request.args.get('keywords')
-    if keywords:
-        keyword_list.extend(keywords.split(','))
+    keywords = request.args.get('keywords', '').split(',')
+    min_price = request.args.get('minPrice', 0, type=int)
+    max_price = request.args.get('maxPrice', 100000000, type=int)
+    collect_cnt = request.args.get('collectCnt', 100, type=int)
 
-    # 수집 환경 처리
-    env = {
-        'min': request.args.get('min', type=int),
-        'max': request.args.get('max', type=int),
-        'cnt': request.args.get('cnt', type=int)
-    }
-
-    return keyword_list, env
+    return keywords, min_price, max_price, collect_cnt
