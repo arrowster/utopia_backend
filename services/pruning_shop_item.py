@@ -1,15 +1,22 @@
+import random
+import time
+
 from models.ShopItem import ShopItem
-from utills.SingletonWebDriver import get_soup_from_url
+from utills.SingletonWebDriver import get_soup_from_url, get_soup_wait_class_element
 from utills.keyword_split import keyword_split
 
 
-def pruning_shop_item(driver, shop_list, min_price, max_price):
+def pruning_shop_item(driver, shop_list, min_price, max_price, platform):
     items = []
     sold_item_keywords = set()
     for shop_url in shop_list:
-        # todo:나중에 쇼핑물 별로 분류 필요
+        if platform == 'auction':
+            keywords = sold_item_keyword_at_auction(driver, shop_url, min_price, max_price)
+        elif platform == 'gmarket':
+            keywords = sold_item_keyword_at_gmarket(driver, shop_url, min_price, max_price)
+        else:
+            raise ValueError(f"Invalid platform: {platform}. Use 'gmarket' or 'auction'.")
 
-        keywords = sold_item_keyword_at_gmarket(driver, shop_url, min_price, max_price)
         if not keywords:
             continue
         sold_item_keywords.update(keywords)
@@ -23,17 +30,60 @@ def pruning_shop_item(driver, shop_list, min_price, max_price):
     return items
 
 
+def sold_item_keyword_at_auction(driver, url, min_price, max_price):
+    sold_item_keywords = []
+
+    add_url = ('/List?Title=Best%20Item&CategoryType=General&SortType=MostPopular&DisplayType=List&Page=0&PageIndex=0'
+               '&PageSize=10&IsFreeShipping=False&Is3PL=False')
+    price_url = f'&minPrice={min_price}&maxPrice={max_price}' if min_price or max_price else ''
+    shop_url = url + add_url + price_url
+    soup = get_soup_from_url(driver, shop_url)
+    if not soup:
+        return False
+
+    try:
+        first_li = soup.select_one('#ulCategory > li:nth-child(1)')
+    except Exception as e:
+        print('not found : ', e)
+        return False
+
+    first_li_name = first_li.find('a').text
+
+    # '공구/안전/산업용품' 카테고리 확인
+    if first_li_name == '공구/안전/산업용품':
+        all_shop_item = soup.find('tbody').find_all('tr')
+        for item in all_shop_item:
+            item_link = item.find('a')
+
+            if item_link and 'href' in item_link.attrs:
+                item_link_url = item_link['href']
+                time.sleep(random.randint(2, 5))
+                item_soup = get_soup_wait_class_element(driver, item_link_url, 'buy_num', False)
+
+                if item_soup:
+                    item_name_tag = item_soup.find('h1', {'class': 'itemtit'})
+
+                    if item_name_tag:
+                        item_name = item_name_tag.text.strip()
+                        keywords = keyword_split(item_name)
+                        item_main_keywords = ' '.join(keywords[:3])
+                        sold_item_keywords.append(item_main_keywords)
+                        print(item_name)
+                else:
+                    break
+    else:
+        return False
+
+    return sold_item_keywords
+
+
 def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
     sold_item_keywords = []
     add_url = ('/List?keyword=&category=&title=Best+Item&sortType=MostPopular&displayType=List&page=1&pageSize=60'
                '&isFreeShipping=false&hasDiscount=false&isInternationalShipping=false'
                '&isTpl=false')
-    price_url = f'&minPrice={min_price}&maxPrice={max_price}'
-
-    if min_price or max_price:
-        shop_url = url + add_url + price_url
-    else:
-        shop_url = url + add_url
+    price_url = f'&minPrice={min_price}&maxPrice={max_price}' if min_price or max_price else ''
+    shop_url = url + add_url + price_url
     soup = get_soup_from_url(driver, shop_url)
 
     first_li = soup.select_one('#ulCategory > li:nth-child(1)')

@@ -33,6 +33,7 @@ def test_debug():
 @app.route('/market-search')
 def market_search_func():
     driver = SingletonWebDriver.get_driver()
+    search_platform = 'auction'
     taobao_url = 'https://s.taobao.com/search?q='
     keywordlist, min_price, max_price, collect_cnt = routers.process_request()
     max_cnt_item = collect_cnt
@@ -50,12 +51,19 @@ def market_search_func():
     print(f'수집 시작 시간: {start_time.tm_hour}:{start_time.tm_min}:{start_time.tm_sec}')
 
     # 마켓 검색
-    shop_list = market_search.search_shops(driver, keywordlist, 'gmarket')
+    shop_list = market_search.search_shops(driver, keywordlist, search_platform)
     print(shop_list)
     print(f'{len(shop_list)}개의 마켓을 찾음')
 
+    # 쿠키 저장
+    cookies = driver.get_cookies()
+
+    # 쿠키 재사용
+    for cookie in cookies:
+        driver.add_cookie(cookie)
+
     # 아이템 가지 치기 (아이템 이름, 이미지, 네이버 카테고리, 메인 키워드 수집)
-    shop_items = pruning_shop_item(driver, shop_list, min_price, max_price)
+    shop_items = pruning_shop_item(driver, shop_list, min_price, max_price, search_platform)
     print(f'{shop_items},\r\n'
           f'{len(shop_items)}개')
 
