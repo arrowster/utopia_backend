@@ -4,6 +4,7 @@ import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver import Keys, ActionChains
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -20,20 +21,8 @@ class SingletonWebDriver:
         return cls._instance
 
     def _init_driver(self):
-        user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/73.0.3683.86 Safari/537.36')
-
-        options = webdriver.ChromeOptions()
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-extensions")
-        options.add_argument("disable-infobars")
-        options.add_argument('incognito')
-        options.add_argument("window-size=800,700")
-        options.add_argument(f'user-agent={user_agent}')
-        options.add_argument("disable-blink-features=AutomationControlled")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
+        options = Options()
+        options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
         service = Service()
         self.driver = webdriver.Chrome(service=service, options=options)
@@ -85,12 +74,14 @@ def get_soup_from_url(driver, url):
     if current_url == 'https://www.auction.co.kr/':  # 옥션 마켓이 없으면 여기로 리다이렉션 됨
         return False
     try:
+        time.sleep(2)
         WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.TAG_NAME, 'div'))
         )
     except Exception as e:
         e
         return False
+    time.sleep(random.randint(2, 7))
 
     last_height = driver.execute_script("return document.body.scrollHeight")
 
@@ -103,6 +94,6 @@ def get_soup_from_url(driver, url):
         if new_height == last_height:
             break
         last_height = new_height
-
+    time.sleep(1)
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     return soup

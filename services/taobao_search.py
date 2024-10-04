@@ -34,14 +34,15 @@ def taobao_image_search(driver, img_path):
         return False
 
     try:
-        load_position = '//*[@id="pageContent"]/div[1]/div[2]/div/div/a[1]'
+        load_position = '//*[@id="search-content-leftWrap"]/div[2]/div/div/a[1]'
+
         WebDriverWait(driver, 20).until(
             expected_conditions.presence_of_element_located((By.XPATH, load_position))
         )
         time.sleep(2)
 
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        search_item = soup.select_one('a[class^="ImgSearchCard--doubleCardWrapper--"]')
+        search_item = soup.select_one('a[class^="doubleCardWrapper--"]')
 
         if search_item:
             try:
@@ -51,7 +52,7 @@ def taobao_image_search(driver, img_path):
                 item_url = None
 
             try:
-                image_tag = search_item.select_one('div[class^="MainPic--mainPicWrapper--"] img')
+                image_tag = search_item.select_one('div[class^="mainPicWrapper--"] img')
                 image_url = image_tag['src'] if image_tag else None
             except KeyError:
                 print("타오바오 이미지 서치 실패")

@@ -1,5 +1,6 @@
 import random
 import time
+from collections import OrderedDict
 
 from models.ShopItem import ShopItem
 from utills.SingletonWebDriver import get_soup_from_url, get_soup_wait_class_element
@@ -9,6 +10,7 @@ from utills.keyword_split import keyword_split
 def pruning_shop_item(driver, shop_list, min_price, max_price, platform):
     items = []
     sold_item_keywords = set()
+
     for shop_url in shop_list:
         if platform == 'auction':
             keywords = sold_item_keyword_at_auction(driver, shop_url, min_price, max_price)
@@ -36,6 +38,7 @@ def sold_item_keyword_at_auction(driver, url, min_price, max_price):
     add_url = ('/List?Title=Best%20Item&CategoryType=General&SortType=MostPopular&DisplayType=List&Page=0&PageIndex=0'
                '&PageSize=10&IsFreeShipping=False&Is3PL=False')
     price_url = f'&minPrice={min_price}&maxPrice={max_price}' if min_price or max_price else ''
+    print(url, add_url, price_url)
     shop_url = url + add_url + price_url
     soup = get_soup_from_url(driver, shop_url)
     if not soup:
@@ -159,24 +162,37 @@ def check_category_identities(criteria, target):
         return False
 
 
-def search_seb_keywords(driver, main_keyword):
-    sub_keywords = set()
-    # todo: 네이버 쇼핑에서 20개 리스트 뽑아서 메인키워드 제외하고, 중복되지 않게 넣어야 함
+def search_sub_keywords(driver, main_keyword):
+    sub_keywords = OrderedDict()
+    recommended_keywords = []
     url = f'https://search.shopping.naver.com/search/all?pagingIndex=1&pagingSize=20&productSet=total&query={main_keyword}&sort=rel&timestamp=&viewType=list'
-    # 메인 키워드 분리
-    main_keywords = keyword_split(main_keyword)
 
     soup = get_soup_from_url(driver, url)
-
     product_item = soup.select("div[class^='product_item__']")
 
-    for item in product_item:
+    for item in product_item[:3]:
         name_tag = item.select_one("div[class^='product_title__']").find('a').text
         product_item_name = name_tag if name_tag else None
+
         keywords = keyword_split(product_item_name)
-        sub_keywords.update(keywords)
+        for i, keyword in enumerate(keywords):
+            if i < 3:
+                sub_keywords[keyword] = None
+                recommended_keywords.append(keyword)
+            else:
+                break
 
-    for keyword in main_keywords:
-        sub_keywords.discard(keyword)
+        # 나머지 키워드를 저장
+        for keyword in keywords[3:]:
+            sub_keywords[keyword] = None
 
-    return sub_keywords
+    for item in product_item[3:]:
+        name_tag = item.select_one("div[class^='product_title__']").find('a').text
+        product_item_name = name_tag if name_tag else None
+
+        keywords = keyword_split(product_item_name)
+
+        for keyword in keywords:
+            sub_keywords[keyword] = None
+
+    return list(sub_keywords.keys()), recommended_keywords
