@@ -8,3 +8,10 @@ def process_request():
     collect_cnt = request.args.get('collectCnt', 100, type=int)
 
     return keywords, min_price, max_price, collect_cnt
+
+
+def xlsx_data_request():
+    request_data = request.json
+    convert_type_code = request_data.get('convertCode')
+    data = request_data.get('data', [])
+    return convert_type_code, data

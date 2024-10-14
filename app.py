@@ -1,11 +1,11 @@
-import subprocess
+import os
 import time
-import webbrowser
-
-from flask import Flask, jsonify
+import openpyxl
+from flask import Flask, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from dataclasses import asdict
+from io import BytesIO
 
 from models.ShopItem import ShopItem
 from routers import routers
@@ -18,14 +18,24 @@ from services import market_search
 from services import taobao_search
 from services.pruning_shop_item import pruning_shop_item, search_sub_keywords
 
-app = Flask(__name__)
-CORS(app, origins=["http://localhost:8080"])
-socketio = SocketIO(app, cors_allowed_origins="http://localhost:8080")
+app = Flask(__name__, static_folder='../utopia_frontend/dist', static_url_path='/')
+CORS(app, origins=["http://127.0.0.1:8080"])
+socketio = SocketIO(app, cors_allowed_origins="http://127.0.0.1:8080")
+EXCEL_PERCENTY_PATH = 'percenty.xlsx'
 
 
 @app.route('/')
-def hello_world():  # put application's code here
-    return 'Hello World!'
+def serve_frontend():
+    return send_from_directory(app.static_folder, 'index.html')
+
+
+@app.route('/<path:path>')
+def serve_static(path):
+    if os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        # Vue Router에서 처리할 경로는 index.html로 전달
+        return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/test-signal')
@@ -160,6 +170,49 @@ def market_search_func():
     shop_items_list = convert_sets_to_lists(shop_items_dict)
     print('done.')
     return jsonify(shop_items_list)
+
+
+@app.route('/xlsx-convert', methods=['POST'])
+def xlsx_convert():
+    convert_type_code, data = routers.xlsx_data_request()
+    print(convert_type_code)
+    if convert_type_code == 1:
+        # 엑셀 템플릿 파일(percenty.xlsx)을 로드
+        if not os.path.exists(EXCEL_PERCENTY_PATH):
+            return "Error: percenty.xlsx 파일이 없습니다.", 400
+
+        workbook = openpyxl.load_workbook(EXCEL_PERCENTY_PATH)
+
+        # 'multi_ss' 시트 확인, 없으면 에러 반환
+        if 'multi_ss' not in workbook.sheetnames:
+            return "Error: 'multi_ss' 시트가 없습니다.", 400
+
+        sheet = workbook['multi_ss']
+
+        # A3 셀부터 data를 작성
+        start_row = 4
+        start_col = 1
+
+        for row_index, row_data in enumerate(data):
+            for col_index, value in enumerate(row_data):
+                sheet.cell(row=start_row + row_index, column=start_col + col_index, value=value)
+
+        # 메모리에 저장 후 파일로 제공
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                         as_attachment=True, download_name='completed_percenty.xlsx')
+
+    elif convert_type_code == 2:
+        print('미구현')
+        return "미구현", 400
+    elif convert_type_code == 3:
+        print('미구현')
+        return "미구현", 400
+    else:
+        return "올바른 변환법이 지정되지 않았습니다.", 400
 
 
 if __name__ == '__main__':
