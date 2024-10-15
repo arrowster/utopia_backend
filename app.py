@@ -195,7 +195,12 @@ def xlsx_convert():
 
         for row_index, row_data in enumerate(data):
             for col_index, value in enumerate(row_data):
-                sheet.cell(row=start_row + row_index, column=start_col + col_index, value=value)
+                if col_index == 4:
+                    value = int(value)
+
+                cell = sheet.cell(row=start_row + row_index, column=start_col + col_index, value=value)
+                if isinstance(value, int) or isinstance(value, int):
+                    cell.number_format = '0'
 
         # 메모리에 저장 후 파일로 제공
         output = BytesIO()
