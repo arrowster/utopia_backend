@@ -1,5 +1,7 @@
 import os
 import time
+import zipfile
+
 import openpyxl
 from flask import Flask, jsonify, send_from_directory, send_file
 from flask_cors import CORS
@@ -176,39 +178,86 @@ def market_search_func():
 def xlsx_convert():
     convert_type_code, data = routers.xlsx_data_request()
     print(convert_type_code)
+
     if convert_type_code == 1:
-        # 엑셀 템플릿 파일(percenty.xlsx)을 로드
         if not os.path.exists(EXCEL_PERCENTY_PATH):
             return "Error: percenty.xlsx 파일이 없습니다.", 400
 
-        workbook = openpyxl.load_workbook(EXCEL_PERCENTY_PATH)
+        # 데이터를 50개씩 분할
+        chunk_size = 50
+        data_chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
 
-        # 'multi_ss' 시트 확인, 없으면 에러 반환
-        if 'multi_ss' not in workbook.sheetnames:
-            return "Error: 'multi_ss' 시트가 없습니다.", 400
+        if len(data_chunks) == 1:
+            # 데이터가 한 개 chunk인 경우, ZIP이 아닌 단일 엑셀 파일로 반환
+            workbook = openpyxl.load_workbook(EXCEL_PERCENTY_PATH)
 
-        sheet = workbook['multi_ss']
+            if 'multi_ss' not in workbook.sheetnames:
+                return "Error: 'multi_ss' 시트가 없습니다.", 400
 
-        # A3 셀부터 data를 작성
-        start_row = 4
-        start_col = 1
+            sheet = workbook['multi_ss']
 
-        for row_index, row_data in enumerate(data):
-            for col_index, value in enumerate(row_data):
-                if col_index == 4:
-                    value = int(value)
+            # A4 셀부터 데이터 작성
+            start_row = 4
+            start_col = 1
 
-                cell = sheet.cell(row=start_row + row_index, column=start_col + col_index, value=value)
-                if isinstance(value, int) or isinstance(value, int):
-                    cell.number_format = '0'
+            for row_index, row_data in enumerate(data_chunks[0]):
+                for col_index, value in enumerate(row_data):
+                    if col_index == 4:
+                        value = int(value) if value else 0  # 정수 변환 및 null 값 처리
 
-        # 메모리에 저장 후 파일로 제공
-        output = BytesIO()
-        workbook.save(output)
-        output.seek(0)
+                    cell = sheet.cell(row=start_row + row_index, column=start_col + col_index, value=value)
+                    if isinstance(value, int):
+                        cell.number_format = '0'
 
-        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                         as_attachment=True, download_name='completed_percenty.xlsx')
+            # 메모리에서 엑셀 파일로 저장
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+
+            # 단일 엑셀 파일로 반환
+            return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                             as_attachment=True, download_name='completed_percenty.xlsx')
+
+        else:
+            # 여러 chunk인 경우 ZIP 파일로 압축
+            zip_buffer = BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for chunk_index, chunk_data in enumerate(data_chunks):
+                    workbook = openpyxl.load_workbook(EXCEL_PERCENTY_PATH)
+
+                    if 'multi_ss' not in workbook.sheetnames:
+                        return "Error: 'multi_ss' 시트가 없습니다.", 400
+
+                    sheet = workbook['multi_ss']
+
+                    # A4 셀부터 데이터 작성
+                    start_row = 4
+                    start_col = 1
+
+                    for row_index, row_data in enumerate(chunk_data):
+                        for col_index, value in enumerate(row_data):
+                            if col_index == 4:
+                                value = int(value) if value else 0
+
+                            cell = sheet.cell(row=start_row + row_index, column=start_col + col_index, value=value)
+                            if isinstance(value, int):
+                                cell.number_format = '0'
+
+                    # 메모리에서 엑셀 파일로 저장
+                    output = BytesIO()
+                    workbook.save(output)
+                    output.seek(0)
+
+                    # 엑셀 파일을 zip 파일에 추가
+                    file_name = f'completed_percenty_part_{chunk_index + 1}.xlsx'
+                    zip_file.writestr(file_name, output.getvalue())
+
+            # zip 파일 완료
+            zip_buffer.seek(0)
+
+            # 압축된 zip 파일을 전송
+            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='percenty_files.zip')
 
     elif convert_type_code == 2:
         print('미구현')
@@ -218,6 +267,7 @@ def xlsx_convert():
         return "미구현", 400
     else:
         return "올바른 변환법이 지정되지 않았습니다.", 400
+
 
 
 if __name__ == '__main__':
