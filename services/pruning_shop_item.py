@@ -1,3 +1,4 @@
+import math
 import random
 import time
 from collections import OrderedDict
@@ -7,9 +8,10 @@ from utills.SingletonWebDriver import get_soup_from_url, get_soup_wait_class_ele
 from utills.keyword_split import keyword_split
 
 
-def pruning_shop_item(driver, shop_list, min_price, max_price, platform):
+def pruning_shop_item(driver, shop_list, min_price, max_price, calibration_cnt, platform):
     items = []
     sold_item_keywords = set()
+    item_cnt = 0
 
     for shop_url in shop_list:
         if platform == 'auction':
@@ -22,13 +24,16 @@ def pruning_shop_item(driver, shop_list, min_price, max_price, platform):
         if not keywords:
             continue
         sold_item_keywords.update(keywords)
+        if len(sold_item_keywords) > calibration_cnt:
+            break
+
     print(sold_item_keywords)
+    print(len(sold_item_keywords))
 
     for item_keyword in sold_item_keywords:
         item = pruning_naver_shoping(driver, item_keyword)
         if item:
             items.extend(item)
-
     return items
 
 

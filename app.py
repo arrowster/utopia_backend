@@ -1,3 +1,4 @@
+import math
 import os
 import time
 import zipfile
@@ -12,7 +13,7 @@ from io import BytesIO
 from models.ShopItem import ShopItem
 from routers import routers
 from utills.SingletonWebDriver import SingletonWebDriver
-from utills.open_chrome import open_chrome
+from utills.open_chrome import open_chrome, close_chrome
 from utills.save_image_and_return_abs_path import save_image_and_return_abs_path
 from utills.print_running_time import print_running_time
 from utills.convert_sets_to_lists import convert_sets_to_lists
@@ -53,14 +54,15 @@ def test_debug():
 
 @app.route('/market-search')
 def market_search_func():
-    open_chrome()
+    chrome_process = open_chrome()
 
     driver = SingletonWebDriver.get_driver()
     search_platform = 'auction'
     taobao_url = 'https://s.taobao.com/search?q='
-    keywordlist, min_price, max_price, collect_cnt = routers.process_request()
-    max_cnt_item = collect_cnt
+    keywordlist, min_price, max_price, max_cnt_item = routers.process_request()
     print(keywordlist)
+    # 수집 수 보정 값   //보정치 = 5
+    calibration_max_cnt = math.ceil(max_cnt_item / 3) + 5
 
     # 소켓 시작 시간 전송
     socketio.emit('message', {
@@ -81,34 +83,60 @@ def market_search_func():
     start_time = time.localtime()
     print(f'수집 시작 시간: {start_time.tm_hour}:{start_time.tm_min}:{start_time.tm_sec}')
 
-    # 마켓 검색
-    shop_list = market_search.search_shops(driver, keywordlist, search_platform)
-    print(shop_list)
-    socketio.emit('message', {
-        'status': 'in_progress',
-        'processed': 2,
-        'total': 5,
-        'infoMsg': f'{len(shop_list)}개의 마켓을 찾음'
-    })
-    print(f'{len(shop_list)}개의 마켓을 찾음')
+    # 아이템 수집
+    shop_items = []
+    while True:
+        # keywordlist가 3개 이상이면 앞에서 2개만 사용해서 검색
+        if len(keywordlist) >= 2:
+            current_keywords = keywordlist[:2]
+        else:
+            current_keywords = keywordlist  # keywordlist가 2개 미만인 경우 전체 사용
 
-    # 쿠키 저장
-    cookies = driver.get_cookies()
+        # 마켓 검색
+        shop_list = market_search.search_shops(driver, current_keywords, search_platform)
+        print(shop_list)
+        socketio.emit('message', {
+            'status': 'in_progress',
+            'processed': 2,
+            'total': 5,
+            'infoMsg': f'{len(shop_list)}개의 마켓을 찾음'
+        })
+        print(f'{len(shop_list)}개의 마켓을 찾음')
 
-    # 쿠키 재사용
-    for cookie in cookies:
-        driver.add_cookie(cookie)
+        # 쿠키 저장
+        cookies = driver.get_cookies()
 
-    # 아이템 가지 치기 (아이템 이름, 이미지, 네이버 카테고리, 메인 키워드 수집)
-    shop_items = pruning_shop_item(driver, shop_list, min_price, max_price, search_platform)
-    socketio.emit('message', {
-        'status': 'in_progress',
-        'processed': 3,
-        'total': 5,
-        'infoMsg': '가지치기 중...'
-    })
-    print(f'{shop_items},\r\n'
-          f'{len(shop_items)}개')
+        # 쿠키 재사용
+        for cookie in cookies:
+            driver.add_cookie(cookie)
+
+        # 아이템 가지 치기 (아이템 이름, 이미지, 네이버 카테고리, 메인 키워드 수집)
+        new_shop_items = pruning_shop_item(driver, shop_list, min_price, max_price, calibration_max_cnt, search_platform)
+        shop_items.extend(new_shop_items)  # 새로 얻은 아이템을 기존 리스트에 추가
+
+        socketio.emit('message', {
+            'status': 'in_progress',
+            'processed': 3,
+            'total': 5,
+            'infoMsg': f'{len(new_shop_items)}개의 아이템을 추가했습니다.'
+        })
+
+        print(f'{new_shop_items},\r\n'
+              f'{len(shop_items)}개의 전체 아이템')
+
+        # 아이템 수가 max_cnt_item보다 적을 경우 반복
+        if len(shop_items) >= max_cnt_item:
+            print(f"완료 - 목표 아이템 수 도달")
+            break  # max_cnt_item 이상이면 종료
+        else:
+            print(f"재작업 - 목표 아이템 수 부족, 다시 시도")
+
+        # 반복할 때 keywordlist에서 2개를 뽑아 다시 진행
+        if len(keywordlist) > 2:
+            keywordlist = keywordlist[2:]
+        else:
+            print("더 이상 사용할 키워드가 없습니다.")
+            break  # 키워드가 더 이상 없으면 종료
 
     # 서브 키워드 수집
     for item in shop_items:
@@ -157,6 +185,7 @@ def market_search_func():
     end_time = time.localtime()
     print(f'수집 종료 시간: {end_time.tm_hour}:{end_time.tm_min}:{end_time.tm_sec}')
     SingletonWebDriver.close_driver()
+    close_chrome(chrome_process)
 
     work_time = print_running_time(start_time, end_time)
     socketio.emit('message', {
@@ -257,7 +286,8 @@ def xlsx_convert():
             zip_buffer.seek(0)
 
             # 압축된 zip 파일을 전송
-            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='percenty_files.zip')
+            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True,
+                             download_name='percenty_files.zip')
 
     elif convert_type_code == 2:
         print('미구현')
@@ -267,7 +297,6 @@ def xlsx_convert():
         return "미구현", 400
     else:
         return "올바른 변환법이 지정되지 않았습니다.", 400
-
 
 
 if __name__ == '__main__':

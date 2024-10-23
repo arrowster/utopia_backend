@@ -5,7 +5,9 @@ forbidden_keywords_set = {"가랑이", "가려움", "가마가츠", "가상", "�
 
 def keyword_split(item_name):
     # 전처리
+    item_name = re.sub(r'\b\d+\b', '', item_name)
     item_name = re.sub(r'\W+', ' ', item_name)
+    item_name = item_name.strip()
     words = item_name.split()
     filtered_words = [word for word in words if word not in forbidden_keywords_set]
 
