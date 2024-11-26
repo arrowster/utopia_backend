@@ -2,8 +2,8 @@ import math
 import os
 import time
 import zipfile
-
 import openpyxl
+
 from flask import Flask, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO
@@ -19,25 +19,20 @@ from utills.print_running_time import print_running_time
 from utills.convert_sets_to_lists import convert_sets_to_lists
 from services import market_search
 from services import taobao_search
-from services.pruning_shop_item import pruning_shop_item, search_sub_keywords
+from services.pruning_shop_item import selling_keywords_item, search_sub_keywords, pruning_naver_shoping
 
-app = Flask(__name__, static_folder='../utopia_frontend/dist', static_url_path='/')
-CORS(app, origins=["http://127.0.0.1:8080"])
-socketio = SocketIO(app, cors_allowed_origins="http://127.0.0.1:8080")
+app = Flask(__name__, static_folder='../utopia_frontend/dist')
+CORS(app, origins=["http://127.0.0.1:5000"])
+socketio = SocketIO(app, cors_allowed_origins="http://127.0.0.1:5000")
 EXCEL_PERCENTY_PATH = 'percenty.xlsx'
 
 
-@app.route('/')
-def serve_frontend():
-    return send_from_directory(app.static_folder, 'index.html')
-
-
+@app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def serve_static(path):
-    if os.path.exists(os.path.join(app.static_folder, path)):
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
-        # Vue Router에서 처리할 경로는 index.html로 전달
         return send_from_directory(app.static_folder, 'index.html')
 
 
@@ -48,21 +43,69 @@ def test_sig_func():
 
 @app.route('/debug-test')
 def test_debug():
-    print('test')
-    return 'test'
 
 
-@app.route('/market-search')
+@app.route('/api/check-item')
+def check_item():
+    chrome_process = open_chrome()
+
+    driver = SingletonWebDriver.get_driver()
+    search_platform = 'auction'
+    keywordlist, min_price, max_price, max_cnt_item, is_pruning = routers.process_request()
+    is_auto_flag = False
+    print(keywordlist)
+
+    selling_items = source_items(driver, keywordlist, min_price, max_price, max_cnt_item, is_auto_flag, search_platform)
+
+    close_chrome(chrome_process)
+    print('done.')
+    return jsonify(selling_items)
+
+
+@app.route('/api/pruning-items')
+def pruning_item():
+    chrome_process = open_chrome()
+    driver = SingletonWebDriver.get_driver()
+    item_name, is_pruning = routers.pruning_request()
+
+    selling_keywords = [
+        ' '.join(name.split()[:3]) for name in item_name
+    ]
+
+    # 타오바오 로그인
+    try:
+        taobao_search.taobao_login(driver)
+    except Exception as e:
+        print("err:", e)
+        SingletonWebDriver.close_driver()
+        return e
+
+    shop_items = prune_items(driver, selling_keywords, is_pruning)
+
+    shop_items_list, cnt = taobao_searching_items(driver, 300, shop_items)
+    print(shop_items_list)
+
+    SingletonWebDriver.close_driver()
+    close_chrome(chrome_process)
+
+    print('done.')
+    return shop_items_list
+
+
+@app.route('/api/market-search')
 def market_search_func():
     chrome_process = open_chrome()
 
     driver = SingletonWebDriver.get_driver()
     search_platform = 'auction'
-    taobao_url = 'https://s.taobao.com/search?q='
-    keywordlist, min_price, max_price, max_cnt_item = routers.process_request()
+    keywordlist, min_price, max_price, max_cnt_item, is_pruning = routers.process_request()
+    is_auto_flag = True
+    print(min_price, max_price, max_cnt_item, is_pruning)
     print(keywordlist)
+
     # 수집 수 보정 값   //보정치 = 5
-    calibration_max_cnt = math.ceil(max_cnt_item / 3) + 5
+    calibration_max_cnt = math.ceil(max_cnt_item)
+    print('보정치 : ', calibration_max_cnt)
 
     # 소켓 시작 시간 전송
     socketio.emit('message', {
@@ -77,14 +120,45 @@ def market_search_func():
         taobao_search.taobao_login(driver)
     except Exception as e:
         print("err:", e)
-        print('close webDriver')
         SingletonWebDriver.close_driver()
         return e
     start_time = time.localtime()
     print(f'수집 시작 시간: {start_time.tm_hour}:{start_time.tm_min}:{start_time.tm_sec}')
 
-    # 아이템 수집
-    shop_items = []
+    # 아이템 소싱 파트
+    selling_keywords = source_items(driver, keywordlist, min_price, max_price, calibration_max_cnt, is_auto_flag, search_platform)
+
+    # 아이템 가지치기 파트
+    shop_items = prune_items(driver, selling_keywords, is_pruning)
+
+    # 타오바오 링크, 타오바오 이미지 수집
+    res_data, cnt = taobao_searching_items(driver, 300, shop_items)
+    print(res_data)
+
+    end_time = time.localtime()
+    print(f'수집 종료 시간: {end_time.tm_hour}:{end_time.tm_min}:{end_time.tm_sec}')
+    SingletonWebDriver.close_driver()
+    close_chrome(chrome_process)
+
+    work_time = print_running_time(start_time, end_time)
+    socketio.emit('message', {
+        'status': 'end',
+        'processed': 5,
+        'total': 5,
+        'time': work_time,
+        'infoMsg': '완료'
+    })
+    print(f'수집 아이템 수: {cnt}개')
+
+    shop_items_dict = [asdict(item) for item in res_data]
+    shop_items_list = convert_sets_to_lists(shop_items_dict)
+    print('done.')
+    return jsonify(shop_items_list)
+
+
+def source_items(driver, keywordlist, min_price, max_price, calibration_max_cnt, is_auto_flag, search_platform):
+    selling_keywords = []
+
     while True:
         # keywordlist가 3개 이상이면 앞에서 2개만 사용해서 검색
         if len(keywordlist) >= 2:
@@ -103,56 +177,64 @@ def market_search_func():
         })
         print(f'{len(shop_list)}개의 마켓을 찾음')
 
-        # 쿠키 저장
+        # 쿠키 저장 및 재사용
         cookies = driver.get_cookies()
-
-        # 쿠키 재사용
         for cookie in cookies:
             driver.add_cookie(cookie)
 
-        # 아이템 가지 치기 (아이템 이름, 이미지, 네이버 카테고리, 메인 키워드 수집)
-        new_shop_items = pruning_shop_item(driver, shop_list, min_price, max_price, calibration_max_cnt, search_platform)
-        shop_items.extend(new_shop_items)  # 새로 얻은 아이템을 기존 리스트에 추가
-
+        # 팔린 키워드 추출
+        new_selling_keywords = selling_keywords_item(driver, shop_list, min_price, max_price, calibration_max_cnt, is_auto_flag, search_platform)
+        selling_keywords.extend(new_selling_keywords)
         socketio.emit('message', {
             'status': 'in_progress',
             'processed': 3,
             'total': 5,
-            'infoMsg': f'{len(new_shop_items)}개의 아이템을 추가했습니다.'
+            'infoMsg': f'{len(new_selling_keywords)}개의 아이템을 추가했습니다.'
         })
 
-        print(f'{new_shop_items},\r\n'
-              f'{len(shop_items)}개의 전체 아이템')
+        print(f'{len(new_selling_keywords)}개의 새로운 아이템 추가, 전체 아이템: {len(selling_keywords)}개')
 
-        # 아이템 수가 max_cnt_item보다 적을 경우 반복
-        if len(shop_items) >= max_cnt_item:
-            print(f"완료 - 목표 아이템 수 도달")
-            break  # max_cnt_item 이상이면 종료
-        else:
-            print(f"재작업 - 목표 아이템 수 부족, 다시 시도")
+        # 아이템 수가 calibration_max_cnt 도달했을 경우 종료
+        if len(selling_keywords) >= calibration_max_cnt:
+            print("완료 - 목표 아이템 수 도달")
+            break
 
-        # 반복할 때 keywordlist에서 2개를 뽑아 다시 진행
+        # 키워드 리스트에서 앞의 두 개를 제거하여 다음 키워드로 이동
         if len(keywordlist) > 2:
             keywordlist = keywordlist[2:]
         else:
             print("더 이상 사용할 키워드가 없습니다.")
             break  # 키워드가 더 이상 없으면 종료
 
+    return selling_keywords
+
+
+def prune_items(driver, selling_keywords, is_pruning):
+    shop_items = []
+    # 가지치기
+    for item_keyword in selling_keywords:
+        item = pruning_naver_shoping(driver, item_keyword, is_pruning)
+        if item:
+            shop_items.extend(item)
+
     # 서브 키워드 수집
     for item in shop_items:
         main_keyword = item.item_main_keywords
         sub_keywords, recommended_keywords = search_sub_keywords(driver, main_keyword)
-
         item.item_sub_keywords = sub_keywords
         item.item_recommended_keywords = recommended_keywords
 
+    return shop_items
+
+
+def taobao_searching_items(driver, max_cnt_item, shop_items):
+    taobao_url = 'https://s.taobao.com/search?q='
     cnt = 0
     if max_cnt_item > len(shop_items):
         all_item_cnt = len(shop_items)
     else:
         all_item_cnt = max_cnt_item
 
-    # 타오바오 링크, 타오바오 이미지 수집
     driver.get(taobao_url)
     socketio.emit('message', {
         'status': 'in_progress',
@@ -180,30 +262,10 @@ def market_search_func():
         time.sleep(2)
 
     print(f'누락 {all_item_cnt - cnt}개')
-    print(res_data)
-
-    end_time = time.localtime()
-    print(f'수집 종료 시간: {end_time.tm_hour}:{end_time.tm_min}:{end_time.tm_sec}')
-    SingletonWebDriver.close_driver()
-    close_chrome(chrome_process)
-
-    work_time = print_running_time(start_time, end_time)
-    socketio.emit('message', {
-        'status': 'end',
-        'processed': 5,
-        'total': 5,
-        'time': work_time,
-        'infoMsg': '완료'
-    })
-    print(f'수집 아이템 수: {cnt}개')
-
-    shop_items_dict = [asdict(item) for item in res_data]
-    shop_items_list = convert_sets_to_lists(shop_items_dict)
-    print('done.')
-    return jsonify(shop_items_list)
+    return res_data, cnt
 
 
-@app.route('/xlsx-convert', methods=['POST'])
+@app.route('/api/xlsx-convert', methods=['POST'])
 def xlsx_convert():
     convert_type_code, data = routers.xlsx_data_request()
     print(convert_type_code)
@@ -300,4 +362,4 @@ def xlsx_convert():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

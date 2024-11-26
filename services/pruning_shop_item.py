@@ -1,21 +1,19 @@
-import math
 import random
 import time
 from collections import OrderedDict
 
 from models.ShopItem import ShopItem
+from models.SoSingItem import SoSingItem
 from utills.SingletonWebDriver import get_soup_from_url, get_soup_wait_class_element
 from utills.keyword_split import keyword_split
 
 
-def pruning_shop_item(driver, shop_list, min_price, max_price, calibration_cnt, platform):
-    items = []
+def selling_keywords_item(driver, shop_list, min_price, max_price, calibration_cnt, is_auto_flag, platform):
     sold_item_keywords = set()
-    item_cnt = 0
 
     for shop_url in shop_list:
         if platform == 'auction':
-            keywords = sold_item_keyword_at_auction(driver, shop_url, min_price, max_price)
+            keywords = sold_item_keyword_at_auction(driver, shop_url, min_price, max_price, is_auto_flag)
         elif platform == 'gmarket':
             keywords = sold_item_keyword_at_gmarket(driver, shop_url, min_price, max_price)
         else:
@@ -24,20 +22,16 @@ def pruning_shop_item(driver, shop_list, min_price, max_price, calibration_cnt, 
         if not keywords:
             continue
         sold_item_keywords.update(keywords)
-        if len(sold_item_keywords) > calibration_cnt:
+        if len(sold_item_keywords) >= calibration_cnt:
             break
 
     print(sold_item_keywords)
     print(len(sold_item_keywords))
 
-    for item_keyword in sold_item_keywords:
-        item = pruning_naver_shoping(driver, item_keyword)
-        if item:
-            items.extend(item)
-    return items
+    return sold_item_keywords
 
 
-def sold_item_keyword_at_auction(driver, url, min_price, max_price):
+def sold_item_keyword_at_auction(driver, url, min_price, max_price, is_auto_flag):
     sold_item_keywords = []
 
     add_url = ('/List?Title=Best%20Item&CategoryType=General&SortType=MostPopular&DisplayType=List&Page=0&PageIndex=0'
@@ -46,16 +40,16 @@ def sold_item_keyword_at_auction(driver, url, min_price, max_price):
     print(url, add_url, price_url)
     shop_url = url + add_url + price_url
     soup = get_soup_from_url(driver, shop_url)
+
     if not soup:
         return False
 
     try:
         first_li = soup.select_one('#ulCategory > li:nth-child(1)')
+        first_li_name = first_li.find('a').text
     except Exception as e:
-        print('not found : ', e)
+        print('Category not found:', e)
         return False
-
-    first_li_name = first_li.find('a').text
 
     # '공구/안전/산업용품' 카테고리 확인
     if first_li_name == '공구/안전/산업용품':
@@ -67,12 +61,29 @@ def sold_item_keyword_at_auction(driver, url, min_price, max_price):
                 item_link_url = item_link['href']
                 time.sleep(random.randint(2, 5))
                 item_soup = get_soup_wait_class_element(driver, item_link_url, 'buy_num', False)
-
                 if item_soup:
-                    item_name_tag = item_soup.find('h1', {'class': 'itemtit'})
+                    item_name = item_soup.find('h1', {'class': 'itemtit'}).text
 
-                    if item_name_tag:
-                        item_name = item_name_tag.text.strip()
+                    if not is_auto_flag:
+                        item_price_tag = item_soup.find('strong', {'class': 'price_real'})
+                        price = ''.join(filter(
+                            lambda x: x.isdigit(), item_price_tag.get_text(strip=True)
+                        ))
+                        image_url = item_soup.find('div', {'class': 'box__viewer-container'}).find('img').get('src')
+                        buy_num = ''.join(filter(
+                            lambda x: x.isdigit(), item_soup.find('p', {'class': 'buy_num'}).contents[0].strip()
+                        ))
+                        sold_item_keywords.append(
+                            SoSingItem(
+                                item_name=item_name,
+                                item_price=price,
+                                item_image_url=image_url,
+                                item_link_url=item_link_url,
+                                item_buy_num=buy_num
+                            )
+                        )
+                    elif item_name:
+                        item_name = item_name.strip()
                         keywords = keyword_split(item_name)
                         item_main_keywords = ' '.join(keywords[:3])
                         sold_item_keywords.append(item_main_keywords)
@@ -113,7 +124,7 @@ def sold_item_keyword_at_gmarket(driver, url, min_price, max_price):
     return sold_item_keywords
 
 
-def pruning_naver_shoping(driver, pruning_item_name):
+def pruning_naver_shoping(driver, pruning_item_name, prune_flag):
     items = []
     url = ('https://search.shopping.naver.com/search/all?pagingIndex=1&pagingSize=3&productSet=overseas&'
            f'query={pruning_item_name}&sort=rel&timestamp=&viewType=list')
@@ -121,7 +132,10 @@ def pruning_naver_shoping(driver, pruning_item_name):
     soup = get_soup_from_url(driver, url)
 
     product_item = soup.select("div[class^='product_item__']")
-    product_items = product_item[:3]
+    if prune_flag:
+        product_items = product_item[:3]
+    else:
+        product_items = product_item[:1]
 
     prev_category = None
     for item in product_items:
@@ -134,7 +148,7 @@ def pruning_naver_shoping(driver, pruning_item_name):
             continue
 
         # 제품 이름 추출
-        name_tag = item.select_one("div[class^='product_title__']").find('a').text
+        name_tag = get_naver_product_title(item)
         product_item_name = name_tag if name_tag else None
 
         # 제품 카테고리 추출
@@ -176,7 +190,7 @@ def search_sub_keywords(driver, main_keyword):
     product_item = soup.select("div[class^='product_item__']")
 
     for item in product_item[:3]:
-        name_tag = item.select_one("div[class^='product_title__']").find('a').text
+        name_tag = get_naver_product_title(item)
         product_item_name = name_tag if name_tag else None
 
         keywords = keyword_split(product_item_name)
@@ -192,7 +206,7 @@ def search_sub_keywords(driver, main_keyword):
             sub_keywords[keyword] = None
 
     for item in product_item[3:]:
-        name_tag = item.select_one("div[class^='product_title__']").find('a').text
+        name_tag = get_naver_product_title(item)
         product_item_name = name_tag if name_tag else None
 
         keywords = keyword_split(product_item_name)
@@ -201,3 +215,13 @@ def search_sub_keywords(driver, main_keyword):
             sub_keywords[keyword] = None
 
     return list(sub_keywords.keys()), recommended_keywords
+
+
+def get_naver_product_title(item):
+    a_tags = item.select_one("div[class^='product_title__']").find_all('a')
+    if len(a_tags) >= 2:  # 두 번째 <a>가 있는지 확인
+        name_tag = a_tags[1].text
+        print(name_tag)
+    else:
+        name_tag = a_tags[0].text
+    return name_tag

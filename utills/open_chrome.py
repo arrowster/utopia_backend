@@ -3,18 +3,21 @@ import time
 
 
 def open_chrome():
-    chrome_process = subprocess.Popen([
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        '--remote-debugging-port=9222',  # 디버깅 포트
-        '--user-data-dir=C:\\Temp',  # 사용자 데이터 디렉터리
-        '--incognito',  # 시크릿 모드
-        '--ignore-certificate-errors',  # http 접속 오류 방지
-        '--allow-running-insecure-content',  # 안전하지 않은 콘텐츠 허용
-        '--window-size=800,680',  # 창 크기
-        'https://www.auction.co.kr/'
-    ])
-    time.sleep(2)
-    return chrome_process
+    try:
+        chrome_process = subprocess.Popen([
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            '--remote-debugging-port=9222',
+            '--user-data-dir=C:\\temp-remote-debug',
+            '--incognito',
+            '--allow-running-insecure-content',
+            '--window-size=800,680',
+            'https://www.auction.co.kr/'
+        ])
+        time.sleep(2)
+        print('Chrome has been opened successfully.')
+        return chrome_process
+    except Exception as e:
+        print(f"Failed to open Chrome: {e}")
 
 
 def close_chrome(chrome_process):

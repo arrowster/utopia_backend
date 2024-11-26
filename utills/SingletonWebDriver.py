@@ -21,11 +21,17 @@ class SingletonWebDriver:
         return cls._instance
 
     def _init_driver(self):
-        options = Options()
-        options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+        try:
+            options = Options()
+            print('connecting...')
+            options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
-        service = Service()
-        self.driver = webdriver.Chrome(service=service, options=options)
+            service = Service()
+            self.driver = webdriver.Chrome(service=service, options=options)
+
+        except Exception as e:
+            print(f"Failed to initialize the WebDriver: {e}")
+            self.driver = None  # 드라이버가 초기화되지 않으면 None으로 설정
 
     @classmethod
     def get_driver(cls):
@@ -35,10 +41,13 @@ class SingletonWebDriver:
 
     @classmethod
     def close_driver(cls):
-        print('close webdriver')
+        print('Closing WebDriver...')
         if cls._instance and cls._instance.driver:
             cls._instance.driver.quit()
             cls._instance = None
+            print('WebDriver closed successfully.')
+        else:
+            print('No WebDriver instance to close.')
 
 
 def get_soup_wait_class_element(driver, url, class_name, is_scrolling):
